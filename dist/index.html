@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="강의 비고의 분반 제한까지 확인하는 서울대 수강신청 도우미">
+  <meta name="theme-color" content="#102a43">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23102a43'/%3E%3Cpath d='M18 17h28v8H18zm0 12h20v8H18zm0 12h13v8H18z' fill='white'/%3E%3Ccircle cx='44' cy='44' r='9' fill='%23c7f464'/%3E%3Cpath d='m40 44 3 3 6-7' fill='none' stroke='%23102a43' stroke-width='3'/%3E%3C/svg%3E">
+  <title>수강나침반</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#app"><span class="brand-icon">☷</span>수강나침반</a>
+    <div class="top-actions"><span class="demo-pill">2026년 2학기 · 데모 데이터</span><button id="resetButton" class="text-button">초기화</button></div>
+  </header>
+
+  <main id="app">
+    <section class="intro">
+      <div><p class="eyebrow">서울대 수강신청 조건 검사기</p><h1>내가 신청할 수 있는<br>분반만 먼저 보세요.</h1></div>
+      <p class="intro-copy">전공·학년과 강의 비고를 함께 대조해 신청 제한을 찾습니다. 결과마다 판단 근거와 다음 행동을 보여줍니다.</p>
+    </section>
+
+    <section class="workspace">
+      <aside class="profile-panel">
+        <div class="section-title"><span>01</span><div><h2>내 조건</h2><p>판정에 필요한 정보만 입력하세요.</p></div></div>
+        <form id="profileForm">
+          <label for="major">소속 전공</label>
+          <select id="major" name="major">
+            <option>컴퓨터공학부</option><option>화학생물공학부</option><option>경영학과</option><option>자유전공학부</option><option>그 외 전공</option>
+          </select>
+          <label>학년</label>
+          <div class="years">
+            <label><input type="radio" name="year" value="1"><span>1</span></label>
+            <label><input type="radio" name="year" value="2" checked><span>2</span></label>
+            <label><input type="radio" name="year" value="3"><span>3</span></label>
+            <label><input type="radio" name="year" value="4"><span>4+</span></label>
+          </div>
+          <label for="track">전공 관계</label>
+          <select id="track" name="track">
+            <option value="primary">주전공</option><option value="double">복수전공·제2전공</option><option value="minor">부전공</option><option value="none">타과생</option>
+          </select>
+          <label for="attempt">수강 이력</label>
+          <select id="attempt" name="attempt"><option value="first">초수강</option><option value="retake">재수강</option></select>
+          <fieldset><legend>현재 신청 시점</legend>
+            <label class="radio-row"><input type="radio" name="day" value="1" checked><span><strong>선착순 1일차</strong><small>제한이 가장 많은 시점</small></span></label>
+            <label class="radio-row"><input type="radio" name="day" value="2"><span><strong>선착순 2일차</strong><small>일부 제한 해제</small></span></label>
+            <label class="radio-row"><input type="radio" name="day" value="3"><span><strong>선착순 3일차 이후</strong><small>전체 학생 허용 가능</small></span></label>
+          </fieldset>
+        </form>
+        <div class="privacy"><strong>기기 안에서만 판정</strong><br>입력한 정보는 서버로 전송하지 않습니다.</div>
+      </aside>
+
+      <section class="results-panel">
+        <div class="results-top">
+          <div class="section-title light"><span>02</span><div><h2>분반별 신청 가능성</h2><p id="resultSummary" aria-live="polite"></p></div></div>
+          <div class="filters"><button class="filter active" data-filter="all">전체</button><button class="filter" data-filter="available">신청 가능</button><button class="filter" data-filter="attention">주의 필요</button></div>
+        </div>
+        <div id="courseList" class="course-list"></div>
+      </section>
+    </section>
+
+    <section class="analyzer">
+      <div class="analyzer-copy"><span class="number">03</span><div><p class="eyebrow">비고 빠른 검사</p><h2>찾아본 강의의 비고를<br>그대로 붙여넣어 보세요.</h2><p>전공·학년·승인·재수강 관련 표현을 찾아 체크리스트로 바꿉니다.</p></div></div>
+      <div class="analyzer-tool">
+        <label for="remarkInput">강의계획서 비고</label>
+        <textarea id="remarkInput" rows="5" placeholder="예: 선착순 1일차 화학생물공학부 주전공 및 제2전공 2학년만 신청 가능. 타과생은 3일차부터 허용."></textarea>
+        <div class="analyzer-actions"><button id="analyzeButton" class="primary-button">제한 조건 찾기</button><button id="exampleButton" class="secondary-button">예시 문구 넣기</button></div>
+        <div id="analysisOutput" class="analysis-output empty" aria-live="polite">비고를 입력하면 여기에서 핵심 조건을 확인할 수 있습니다.</div>
+      </div>
+    </section>
+
+    <section class="notice"><strong>DEMO</strong><p>현재 강좌와 제한 조건은 기능 확인용 예시입니다. 실제 신청 전에는 수강신청 사이트와 개설 학과의 최신 공지를 반드시 확인하세요.</p></section>
+  </main>
+  <footer><span>수강나침반 초기 버전</span><span>판정 근거를 숨기지 않는 수강신청 도우미</span></footer>
+  <script src="./app.js"></script>
+</body>
+</html>
