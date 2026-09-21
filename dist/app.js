@@ -1,204 +1,93 @@
-const courses = [
-  {
-    id: "M1522.000900-001", code: "M1522.000900 · 001", name: "자료구조", department: "컴퓨터공학부",
-    professor: "김교수", time: "월·수 11:00–12:15", room: "301동 118호",
-    remark: "선착순 1일차 컴퓨터공학부 주전공 2학년 우선. 2일차부터 컴퓨터공학부 전체, 3일차부터 전체 학생 허용.",
-    source: "강좌 상세정보 비고 · 데모",
-    evaluate: function(p) {
-      if (p.day >= 3) return verdict("available", "신청 가능", "현재 시점에는 전체 학생에게 열린 분반입니다.");
-      if (p.major !== "컴퓨터공학부") return verdict("later", "3일차부터 가능", "타과생 제한이 풀리는 3일차에 다시 확인하세요.");
-      if (p.day >= 2) return verdict("available", "신청 가능", "컴퓨터공학부 학생에게 열린 시점입니다.");
-      if (p.track === "primary" && p.year === 2) return verdict("available", "신청 가능", "1일차 우선 대상인 주전공 2학년 조건을 충족합니다.");
-      return verdict("later", "2일차부터 가능", "1일차에는 주전공 2학년만 우선 신청할 수 있습니다.");
-    }
-  },
-  {
-    id: "M2177.003100-002", code: "M2177.003100 · 002", name: "화학생물공정실험", department: "화학생물공학부",
-    professor: "이교수", time: "화 14:00–18:00", room: "302동 509호",
-    remark: "화학생물공학부 주전공 및 제2전공 3학년. 지정 분반을 확인할 것. 타과생은 담당자 승인 필요.",
-    source: "개설 학과 공지 · 데모",
-    evaluate: function(p) {
-      var belongs = p.major === "화학생물공학부" && (p.track === "primary" || p.track === "double");
-      if (!belongs) return verdict("check", "승인 확인 필요", "타과생은 자동 판정할 수 없습니다. 개설 학과에 승인 가능 여부를 문의하세요.");
-      if (p.year !== 3) return verdict("blocked", "지정 학년 아님", "이 분반은 3학년 대상입니다. 학년별 지정 분반을 확인하세요.");
-      return verdict("check", "분반 확인 필요", "전공·학년 조건은 맞지만 지정 분반 배정 여부를 추가로 확인해야 합니다.");
-    }
-  },
-  {
-    id: "L0444.000600-001", code: "L0444.000600 · 001", name: "글쓰기의 기초", department: "기초교육원",
-    professor: "박교수", time: "금 09:00–11:50", room: "61동 320호",
-    remark: "신입생 대상 강좌. 재수강생 수강 불가. 수강반 제한은 강좌 상세정보에서 확인.",
-    source: "강의계획서 비고 · 데모",
-    evaluate: function(p) {
-      if (p.attempt === "retake") return verdict("blocked", "신청 제한", "비고에 재수강생 수강 불가로 명시되어 있습니다.");
-      if (p.year !== 1) return verdict("blocked", "대상 학년 아님", "신입생 대상 강좌라 현재 학년으로는 신청하기 어렵습니다.");
-      return verdict("check", "상세 제한 확인", "학년·수강 이력은 맞지만 강좌 상세의 수강반 제한을 추가로 확인해야 합니다.");
-    }
-  },
-  {
-    id: "M1312.001000-003", code: "M1312.001000 · 003", name: "경영학원론", department: "경영학과",
-    professor: "최교수", time: "화·목 12:30–13:45", room: "58동 119호",
-    remark: "수강대상 제한 없음. 타전공 학생도 신청 가능. 수강정원 초과 시 장바구니 신청자 우선.",
-    source: "강좌 상세정보 비고 · 데모",
-    evaluate: function() { return verdict("available", "조건 충족", "전공·학년 제한은 없습니다. 장바구니 및 여석 여부는 별도로 확인하세요."); }
-  },
-  {
-    id: "M3500.001300-001", code: "M3500.001300 · 001", name: "인공지능과 윤리", department: "협동과정",
-    professor: "정교수", time: "수 15:00–17:50", room: "83동 404호",
-    remark: "학부 3학년 이상 권장. 첫 수업에서 담당교수의 수강 승인을 받아야 함.",
-    source: "강의계획서 비고 · 데모",
-    evaluate: function(p) {
-      if (p.year < 3) return verdict("check", "권장 조건 미달", "3학년 이상은 권장 사항입니다. 교수 승인 가능 여부를 확인하세요.");
-      return verdict("check", "교수 승인 필요", "학년 권장 조건은 충족하지만 첫 수업에서 담당교수의 승인이 필요합니다.");
-    }
-  }
-];
+const app = {
+  role: "admin", taskFilter: "all",
+  capacities: [
+    { name: "교수 A", field: "로봇·제어", used: 4, total: 4 },
+    { name: "교수 B", field: "열유체", used: 3, total: 5 },
+    { name: "교수 C", field: "고체역학", used: 2, total: 3 },
+    { name: "교수 D", field: "설계·생산", used: 1, total: 4 }
+  ],
+  tasks: [
+    { initials: "A", name: "학생 A", meta: "학번 비공개 · 복수전공", reason: "희망 교수 정원 초과", status: "미배정", tone: "bad", due: "오늘까지", action: "배정 조정" },
+    { initials: "B", name: "학생 B", meta: "학번 비공개 · 주전공", reason: "지도교수 승인 대기 4일", status: "승인 대기", tone: "wait", due: "D-2", action: "확인 요청" },
+    { initials: "C", name: "학생 C", meta: "학번 비공개 · 주전공", reason: "연구계획서 서명 누락", status: "보완 필요", tone: "warn", due: "D-3", action: "보완 요청" },
+    { initials: "D", name: "학생 D", meta: "학번 비공개 · 복수전공", reason: "최종본 접수 확인 필요", status: "접수 대기", tone: "wait", due: "D-5", action: "접수 확인" }
+  ]
+};
 
-var savedList = [];
-try { savedList = JSON.parse(localStorage.getItem("courseCompassSaved") || "[]"); } catch (_) {}
-var state = { filter: "all", openCourse: null, saved: new Set(savedList) };
-var form = document.getElementById("profileForm");
-var list = document.getElementById("courseList");
-var summary = document.getElementById("resultSummary");
-var filterButtons = Array.from(document.querySelectorAll(".filter"));
+const navByRole = {
+  admin: [["▦","전체 현황","12"],["◎","처리할 업무","4"],["♙","지도교수 배정","3"],["▤","학생 진행 관리",""],["▣","서류 접수·보완","7"],["◷","일정·공지 관리",""],["⇩","결과 취합",""],["↺","변경 이력",""]],
+  professor: [["▦","내 지도 현황",""],["♙","지도 신청","2"],["▤","연구계획서 검토","3"],["✓","논문 심사","4"],["◷","주요 일정",""]],
+  student: [["▦","나의 현황",""],["♙","지도교수 신청",""],["▤","제출 서류","2"],["◷","전체 일정",""],["⌕","학과별 요건",""]]
+};
+const names = { admin: "기계공학부 행정실", professor: "교수 A · 기계공학부", student: "학생 A · 기계공학부" };
 
-function verdict(status, label, action) { return { status: status, label: label, action: action }; }
-function profile() {
-  var d = new FormData(form);
-  return { major: d.get("major"), year: Number(d.get("year")), track: d.get("track"), attempt: d.get("attempt"), day: Number(d.get("day")) };
+function metric(label, value, note, tint) {
+  return `<article class="metric" style="--tint:${tint}"><div class="metric-top">${label}</div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></article>`;
 }
-function esc(v) {
-  return String(v).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+function renderNav() {
+  const nav = document.querySelector("#sideNav");
+  const label = app.role === "admin" ? "행정 업무" : app.role === "professor" ? "지도·심사" : "졸업논문";
+  nav.innerHTML = `<span class="nav-label">${label}</span>` + navByRole[app.role].map((item, i) => `<button class="nav-item ${i === 0 ? "active" : ""}"><span class="nav-icon">${item[0]}</span>${item[1]}${item[2] ? `<span class="nav-badge">${item[2]}</span>` : ""}</button>`).join("");
+  nav.querySelectorAll(".nav-item").forEach(button => button.addEventListener("click", () => {
+    nav.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    button.classList.add("active"); showToast(`${button.textContent.trim()} 화면은 시연 범위에서 요약으로 제공합니다.`);
+  }));
 }
-function category(s) { return s === "available" ? "available" : "attention"; }
-
-function courseHtml(c) {
-  var open = state.openCourse === c.id;
-  var saved = state.saved.has(c.id);
-  return '<article class="course-card' + (open ? ' open' : '') + '" data-id="' + esc(c.id) + '">' +
-    '<button class="course-summary" aria-expanded="' + open + '">' +
-      '<span class="course-name"><strong>' + esc(c.name) + '</strong><span>' + esc(c.code) + ' · ' + esc(c.professor) + '</span></span>' +
-      '<span class="course-meta"><strong>' + esc(c.time) + '</strong><span>' + esc(c.room) + '</span></span>' +
-      '<span class="badge ' + esc(c.result.status) + '">' + esc(c.result.label) + '</span><span class="chevron">⌄</span>' +
-    '</button>' +
-    '<div class="course-detail">' +
-      '<div class="detail-box evidence"><h3>판정에 사용한 원문</h3><p>' + esc(c.remark) + '</p></div>' +
-      '<div><div class="detail-box"><h3>다음 행동</h3><p>' + esc(c.result.action) + '</p></div>' +
-      '<div class="course-action"><small>' + esc(c.source) + '</small><button class="save-button' + (saved ? ' saved' : '') + '" data-save="' + esc(c.id) + '">' + (saved ? '저장됨' : '관심 저장') + '</button></div></div>' +
-    '</div></article>';
+function renderTasks() {
+  const visible = app.tasks.filter(task => app.taskFilter === "all" || (app.taskFilter === "assignment" ? ["미배정","승인 대기"].includes(task.status) : !["미배정","승인 대기"].includes(task.status)));
+  return visible.map((task, i) => `<div class="task-row"><span class="initial">${task.initials}</span><div><div class="student-name">${task.name}</div><div class="student-meta">${task.meta}</div></div><div class="reason">${task.reason}</div><div><span class="status ${task.tone}">${task.status}</span><div class="student-meta">${task.due}</div></div><button class="btn small ${i === 0 ? "danger" : ""}" data-task="${task.name}">${task.action}</button></div>`).join("") || `<div class="empty-note">해당하는 업무가 없습니다.</div>`;
+}
+function renderCapacities() {
+  return app.capacities.map(item => `<div class="capacity-row"><div class="capacity-title"><strong>${item.name}</strong><span>${item.field} · ${item.used}/${item.total}명</span></div><div class="bar"><i class="${item.used >= item.total ? "full" : ""}" style="width:${Math.min(100, item.used / item.total * 100)}%"></i></div><div class="capacity-foot"><span>확정 ${item.used}명</span><span>${item.total - item.used > 0 ? `잔여 ${item.total - item.used}명` : "정원 마감"}</span></div></div>`).join("");
 }
 
+function adminView() {
+  return `<section class="page-head"><div><p class="eyebrow">Administration dashboard</p><h1>졸업논문 운영 현황</h1><p class="page-desc">미배정과 누락부터 확인하고, 교수별 지도 정원을 조정하세요. 모든 인물은 가상입니다.</p></div><div class="head-actions"><button class="btn" data-toast="공지·서식 관리 화면을 엽니다.">공지·서식 관리</button><button class="btn primary" data-toast="새 일정 등록 화면을 엽니다.">+ 일정 등록</button></div></section>
+  <section class="metric-grid">${metric("대상 학생","48명","주전공 35 · 복수전공 13","#eef2ff")}${metric("지도교수 미확정","3명",`<span class="up">지난주보다 1명 증가</span>`,"#ffebe9")}${metric("서류 보완 필요","7건","계획서 4 · 승인서 3","#fff4df")}${metric("최종 완료","21명","전체 대상자의 44%","#e5f7f1")}</section>
+  <section class="content-grid"><div class="stack"><article class="panel"><div class="panel-head"><div><h2>지금 처리할 업무</h2><p>마감과 지연 기간을 기준으로 정렬했습니다.</p></div><div class="segmented"><button class="active" data-filter="all">전체</button><button data-filter="assignment">배정</button><button data-filter="document">서류</button></div></div><div class="task-list" id="taskList">${renderTasks()}</div></article>
+  <article class="panel table-panel"><div class="panel-head"><div><h2>학생별 진행 현황</h2><p>학술 심사와 행정 접수 상태를 따로 확인합니다.</p></div><button class="link-button" data-toast="48명 전체 명단을 표시합니다.">전체 48명 보기 →</button></div><table class="data-table"><thead><tr><th>학생</th><th>전공 구분</th><th>지도교수</th><th>계획서</th><th>논문 심사</th><th>행정 접수</th></tr></thead><tbody>
+  <tr><td><strong>학생 E</strong><br><span class="student-meta">학번 비공개</span></td><td>주전공</td><td>교수 B</td><td><span class="status good">확인</span></td><td><span class="status good">합격</span></td><td><span class="status warn">최종본 대기</span></td></tr>
+  <tr><td><strong>학생 F</strong><br><span class="student-meta">학번 비공개</span></td><td>복수전공</td><td>교수 C</td><td><span class="status good">확인</span></td><td><span class="status wait">심사 중</span></td><td><span class="status wait">대기</span></td></tr>
+  <tr><td><strong>학생 A</strong><br><span class="student-meta">학번 비공개</span></td><td>복수전공</td><td>미정</td><td><span class="status wait">작성 전</span></td><td>—</td><td>—</td></tr></tbody></table></article></div>
+  <div class="stack"><article class="panel"><div class="panel-head"><div><h2>교수별 지도 정원</h2><p>신청 인원과 확정 인원을 구분해 관리합니다.</p></div><button class="link-button" data-toast="교수별 정원 수정 화면을 엽니다.">정원 관리</button></div><div class="capacity-list">${renderCapacities()}</div></article>
+  <article class="panel"><div class="panel-head"><div><h2>이번 주 일정</h2><p>학생·교수 화면에도 같은 일정이 표시됩니다.</p></div></div><div class="timeline"><div class="timeline-item done"><i class="dot"></i><div><div class="timeline-title">희망 지도교수 신청 마감</div><div class="timeline-meta">신청 45명 · 미신청 3명</div></div><span class="date">9.18</span></div><div class="timeline-item"><i class="dot"></i><div><div class="timeline-title">지도교수 배정 확정</div><div class="timeline-meta">정원 초과 1건 조정 필요</div></div><span class="date">9.25</span></div><div class="timeline-item future"><i class="dot"></i><div><div class="timeline-title">연구계획서 제출</div><div class="timeline-meta">지도교수 승인 포함</div></div><span class="date">10.16</span></div></div></article></div></section>`;
+}
+
+function professorView() {
+  return `<section class="page-head"><div><p class="eyebrow">Professor dashboard</p><h1>교수 A의 지도 현황</h1><p class="page-desc">학생 신청을 검토하고 계획서·논문 심사를 한곳에서 처리하세요. 가상 데이터입니다.</p></div><div class="head-actions"><button class="btn" data-toast="이번 학기 지도 정원 변경을 요청했습니다.">정원 변경 요청</button></div></section>
+  <section class="metric-grid">${metric("지도 정원","4명","확정 4 · 잔여 0","#ffebe9")}${metric("신규 신청","2건","확인 대기","#fff4df")}${metric("계획서 검토","3건","가장 오래된 대기 4일","#f2edff")}${metric("논문 심사","4건","12월 14일까지","#e5f7f1")}</section>
+  <section class="content-grid"><article class="panel"><div class="panel-head"><div><h2>지도 신청 검토</h2><p>수락 전에 현재 정원과 학생의 연구 주제를 확인합니다.</p></div></div><div class="task-list"><div class="task-row"><span class="initial">B</span><div><div class="student-name">학생 B</div><div class="student-meta">주전공 · 1순위 신청</div></div><div class="reason">휴머노이드 보행 제어</div><div><span class="status wait">검토 대기</span></div><button class="btn small" data-toast="현재 정원이 가득 차 있어 행정실 조정이 필요합니다.">검토하기</button></div><div class="task-row"><span class="initial">G</span><div><div class="student-name">학생 G</div><div class="student-meta">복수전공 · 2순위 신청</div></div><div class="reason">협동 로봇 안전 제어</div><div><span class="status wait">검토 대기</span></div><button class="btn small" data-toast="신청 상세 내용을 표시합니다.">검토하기</button></div></div></article>
+  <div class="stack"><article class="panel"><div class="panel-head"><div><h2>내 지도 학생</h2><p>현재 4명 · 정원 마감</p></div></div><ul class="checklist"><li><span class="checkmark">✓</span>학생 H · 계획서 승인<small>완료</small></li><li><span class="checkmark pending">!</span>학생 I · 초고 검토<small>D-2</small></li><li><span class="checkmark">✓</span>학생 J · 계획서 승인<small>완료</small></li><li><span class="checkmark pending">!</span>학생 K · 면담 기록<small>대기</small></li></ul></article></div></section>`;
+}
+
+function studentView() {
+  return `<section class="page-head"><div><p class="eyebrow">Student dashboard</p><h1>학생 A의 졸업논문</h1><p class="page-desc">기계공학부 복수전공 · 2027년 2월 졸업 예정 · 가상 데이터</p></div><div class="head-actions"><button class="btn" data-toast="학과 원문 공지를 새 창에서 확인할 수 있습니다.">원문 공지 확인</button></div></section>
+  <section class="metric-grid">${metric("현재 단계","지도교수 배정","1순위 정원 초과로 조정 중","#ffebe9")}${metric("다음 마감","D-4","연구계획서 초안 · 9월 25일","#fff4df")}${metric("완료한 단계","2 / 7","졸업신청 · 주제 제출","#e5f7f1")}${metric("확인할 알림","2건","배정 결과 · 서류 보완","#f2edff")}</section>
+  <section class="content-grid"><article class="panel"><div class="panel-head"><div><h2>나의 진행 단계</h2><p>완료 여부는 전공별로 따로 관리됩니다.</p></div></div><div class="timeline"><div class="timeline-item done"><i class="dot"></i><div><div class="timeline-title">졸업논문 대상 확인</div><div class="timeline-meta">복수전공 기준 확인 완료</div></div><span class="date">완료</span></div><div class="timeline-item done"><i class="dot"></i><div><div class="timeline-title">주제·희망 교수 신청</div><div class="timeline-meta">1순위 교수 A · 2순위 교수 B</div></div><span class="date">9.18</span></div><div class="timeline-item"><i class="dot"></i><div><div class="timeline-title">지도교수 배정</div><div class="timeline-meta">1순위 정원 초과 · 행정실 조정 중</div></div><span class="date">9.25</span></div><div class="timeline-item future"><i class="dot"></i><div><div class="timeline-title">연구계획서 승인·제출</div><div class="timeline-meta">배정 후 지도교수 승인 필요</div></div><span class="date">10.16</span></div><div class="timeline-item future"><i class="dot"></i><div><div class="timeline-title">논문 심사 및 최종본 제출</div><div class="timeline-meta">심사 합격과 행정 접수는 별도 확인</div></div><span class="date">12.14</span></div></div></article>
+  <div class="stack"><article class="panel"><div class="panel-head"><div><h2>지도교수 신청</h2><p>행정실에서 최종 배정 중입니다.</p></div></div><ul class="checklist"><li><span class="checkmark pending">1</span>교수 A · 로봇·제어<small>정원 4/4</small></li><li><span class="checkmark">2</span>교수 B · 열유체<small>정원 3/5</small></li></ul></article><article class="panel"><div class="panel-head"><div><h2>제출 서류</h2></div></div><ul class="checklist"><li><span class="checkmark">✓</span>주제 및 개요<small>제출 완료</small></li><li><span class="checkmark pending">!</span>지도교수 승인서<small>배정 후 제출</small></li></ul></article></div></section>`;
+}
+
+function bindTaskActions() {
+  document.querySelectorAll("[data-task]").forEach(button => button.addEventListener("click", () => {
+    const task = app.tasks.find(item => item.name === button.dataset.task); if (!task) return;
+    if (task.status === "미배정") { task.reason = "교수 B에게 재배정 제안"; task.status = "조정 중"; task.tone = "wait"; task.action = "상세 보기"; showToast("잔여 정원이 있는 교수 B에게 재배정을 제안했습니다."); }
+    else if (task.status === "승인 대기") { task.reason = "교수에게 확인 요청 발송"; task.due = "방금"; showToast("지도교수에게 확인 요청을 보냈습니다."); }
+    else if (task.status === "보완 필요") { task.reason = "학생에게 보완 요청 발송"; task.due = "방금"; showToast("서명 누락 보완 요청을 보냈습니다."); }
+    else { task.status = "접수 완료"; task.tone = "good"; task.action = "완료"; task.due = "방금"; showToast("최종본 접수를 확인했습니다."); }
+    document.querySelector("#taskList").innerHTML = renderTasks(); bindTaskActions();
+  }));
+}
+function bindActions() {
+  document.querySelectorAll("[data-toast]").forEach(button => button.addEventListener("click", () => showToast(button.dataset.toast)));
+  document.querySelectorAll("[data-filter]").forEach(button => button.addEventListener("click", () => { app.taskFilter = button.dataset.filter; document.querySelectorAll("[data-filter]").forEach(item => item.classList.toggle("active", item === button)); document.querySelector("#taskList").innerHTML = renderTasks(); bindTaskActions(); }));
+  bindTaskActions();
+}
 function render() {
-  var p = profile();
-  var evaluated = courses.map(function(c) { return Object.assign({}, c, { result: c.evaluate(p) }); });
-  var available = evaluated.filter(function(c) { return c.result.status === "available"; }).length;
-  summary.textContent = evaluated.length + "개 분반 중 " + available + "개 신청 가능 · " + (evaluated.length - available) + "개 주의 필요";
-  var visible = evaluated.filter(function(c) { return state.filter === "all" || category(c.result.status) === state.filter; });
-  list.innerHTML = visible.length ? visible.map(courseHtml).join("") : '<div class="empty-results">이 조건에 해당하는 분반이 없습니다.</div>';
+  document.querySelectorAll(".role-button").forEach(button => button.classList.toggle("active", button.dataset.role === app.role));
+  document.querySelector("#userName").textContent = names[app.role]; document.querySelector(".avatar").textContent = app.role === "admin" ? "행" : app.role === "professor" ? "교" : "학";
+  renderNav(); document.querySelector("#mainContent").innerHTML = app.role === "admin" ? adminView() : app.role === "professor" ? professorView() : studentView(); bindActions();
 }
-
-form.addEventListener("change", render);
-list.addEventListener("click", function(e) {
-  var save = e.target.closest("[data-save]");
-  if (save) {
-    e.stopPropagation();
-    var saveId = save.dataset.save;
-    if (state.saved.has(saveId)) state.saved.delete(saveId); else state.saved.add(saveId);
-    localStorage.setItem("courseCompassSaved", JSON.stringify(Array.from(state.saved)));
-    render();
-    return;
-  }
-  var button = e.target.closest(".course-summary");
-  if (!button) return;
-  var id = button.closest(".course-card").dataset.id;
-  state.openCourse = state.openCourse === id ? null : id;
-  render();
-});
-filterButtons.forEach(function(button) {
-  button.addEventListener("click", function() {
-    state.filter = button.dataset.filter;
-    filterButtons.forEach(function(x) { x.classList.toggle("active", x === button); });
-    render();
-  });
-});
-
-var patterns = [
-  ["전공 제한", /(주전공|제2전공|복수전공|부전공|타과생|학과|학부)[^.!?\n]*/g],
-  ["학년 제한", /([1-4]학년|신입생|학부\s*[1-4]학년\s*이상)[^.!?\n]*/g],
-  ["신청 시점", /(장바구니|선착순|[1-3]일차|신청\s*기간)[^.!?\n]*/g],
-  ["승인 필요", /(교수|담당자|학과)[^.!?\n]*(승인|허가|문의)[^.!?\n]*/g],
-  ["수강 이력", /(재수강|초수강)[^.!?\n]*/g],
-  ["선수 조건", /(선수과목|선이수|이수한 학생)[^.!?\n]*/g]
-];
-function analyze() {
-  var input = document.getElementById("remarkInput");
-  var output = document.getElementById("analysisOutput");
-  var text = input.value.trim();
-  if (!text) { output.className = "analysis-output empty"; output.textContent = "검사할 비고 문구를 먼저 입력해 주세요."; input.focus(); return; }
-  var findings = [];
-  patterns.forEach(function(p) {
-    var matches = text.match(p[1]) || [];
-    Array.from(new Set(matches)).forEach(function(m) { findings.push([p[0], m.trim()]); });
-  });
-  output.className = "analysis-output";
-  if (!findings.length) {
-    output.innerHTML = '<strong>명시적인 제한 표현을 찾지 못했습니다.</strong><p class="uncertain">제한이 없다는 뜻은 아닙니다. 강좌 상세와 개설 학과 공지도 확인하세요.</p>';
-    return;
-  }
-  output.innerHTML = '<ul>' + findings.map(function(f) { return '<li><strong>' + esc(f[0]) + '</strong> · ' + esc(f[1]) + '</li>'; }).join("") + '</ul><p class="uncertain">자동 추출 결과입니다. ‘권장’과 ‘필수’, 날짜별 예외는 원문에서 다시 확인하세요.</p>';
-}
-document.getElementById("analyzeButton").addEventListener("click", analyze);
-document.getElementById("exampleButton").addEventListener("click", function() {
-  document.getElementById("remarkInput").value = "선착순 1일차 화학생물공학부 주전공 및 제2전공 2학년만 신청 가능. 타과생은 3일차부터 허용. 재수강생은 담당교수 승인 필요.";
-  analyze();
-});
-document.getElementById("resetButton").addEventListener("click", function() {
-  form.reset(); state.filter = "all"; state.openCourse = null;
-  filterButtons.forEach(function(x) { x.classList.toggle("active", x.dataset.filter === "all"); });
-  document.getElementById("remarkInput").value = "";
-  var out = document.getElementById("analysisOutput"); out.className = "analysis-output empty"; out.textContent = "비고를 입력하면 여기에서 핵심 조건을 확인할 수 있습니다.";
-  render();
-});
+let toastTimer;
+function showToast(message) { const toast = document.querySelector("#toast"); toast.textContent = message; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2600); }
+document.querySelectorAll(".role-button").forEach(button => button.addEventListener("click", () => { app.role = button.dataset.role; app.taskFilter = "all"; render(); document.querySelector("#mainContent").focus(); }));
 render();
-
-function registerAgentTools() {
-  if (!document.modelContext || !document.modelContext.registerTool) return;
-  try {
-    document.modelContext.registerTool({
-      name: "set_student_profile",
-      title: "학생 조건 설정",
-      description: "전공, 학년, 전공 관계, 수강 이력, 신청 시점을 설정하고 화면의 분반 판정을 갱신합니다.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          major: { type: "string", enum: ["컴퓨터공학부", "화학생물공학부", "경영학과", "자유전공학부", "그 외 전공"] },
-          year: { type: "integer", minimum: 1, maximum: 4 },
-          track: { type: "string", enum: ["primary", "double", "minor", "none"] },
-          attempt: { type: "string", enum: ["first", "retake"] },
-          day: { type: "integer", minimum: 1, maximum: 3 }
-        },
-        required: ["major", "year", "track", "attempt", "day"],
-        additionalProperties: false
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: function(input) {
-        var validMajor = ["컴퓨터공학부", "화학생물공학부", "경영학과", "자유전공학부", "그 외 전공"].includes(input.major);
-        var validTrack = ["primary", "double", "minor", "none"].includes(input.track);
-        var validAttempt = ["first", "retake"].includes(input.attempt);
-        if (!validMajor || !validTrack || !validAttempt || ![1,2,3,4].includes(input.year) || ![1,2,3].includes(input.day)) {
-          throw new Error("지원하지 않는 학생 조건입니다.");
-        }
-        form.elements.major.value = input.major;
-        form.elements.track.value = input.track;
-        form.elements.attempt.value = input.attempt;
-        form.querySelector('input[name="year"][value="' + input.year + '"]').checked = true;
-        form.querySelector('input[name="day"][value="' + input.day + '"]').checked = true;
-        render();
-        return { updated: true, profile: profile(), courseCount: courses.length };
-      }
-    });
-  } catch (error) {
-    console.warn("WebMCP tool registration failed", error);
-  }
-}
-registerAgentTools();
