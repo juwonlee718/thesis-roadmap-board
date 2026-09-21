@@ -74,6 +74,11 @@ h3,
 p {
   margin: 0;
 }
+h1,
+h2,
+h3 {
+  word-break: keep-all;
+}
 h1 {
   font-size: 32px;
   line-height: 1.35;
