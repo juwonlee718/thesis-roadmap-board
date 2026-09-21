@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div className="landing">
       <div className="eyebrow">
-        <span className="live-dot" /> 졸업까지, 한 단계씩
+        <span className="live-dot" /> 샤논과 함께, 졸업까지 한 단계씩
       </div>
       <h1>
         전공은 달라도,
@@ -28,11 +28,11 @@ export default function Home() {
         </span>
         <ArrowRight size={18} />
         <span>
-          <i>02</i> 지도교수 승인
+          <i>02</i> 지도 상담과 승인
         </span>
         <ArrowRight size={18} />
         <span>
-          <i>03</i> 행정실 확정 검토
+          <i>03</i> 논문 제출과 심사
         </span>
         <CheckCheck size={22} />
       </div>
@@ -53,15 +53,15 @@ export default function Home() {
             href: "/professor",
             icon: BookOpen,
             title: "교수",
-            desc: "지도 신청 검토와 승인",
-            text: "학생의 연구 계획을 검토하고 피드백과 승인 결과를 바로 전달하세요.",
+            desc: "지도 상담부터 논문 심사까지",
+            text: "연구 계획과 면담 요청을 이어서 검토하고, 제출된 논문에 피드백을 전달하세요.",
           },
           {
             href: "/admin",
             icon: Layers3,
             title: "행정실",
-            desc: "학과 전체의 진행 현황",
-            text: "미확정 학생을 확인하고, 교수 승인 건의 확정 검토와 수업 배정을 진행하세요.",
+            desc: "학과 절차 관리와 학생 현황",
+            text: "학과 절차와 마감을 편집하고 공지를 전하세요. 졸업 대상 학생의 진행 상황도 검색할 수 있어요.",
           },
         ].map(({ icon: Icon, ...r }) => (
           <Link className="role-card" href={r.href} key={r.href}>

@@ -11,6 +11,9 @@ import {
   RotateCcw,
   ArrowUpRight,
   Check,
+  ArrowLeft,
+  Search,
+  Megaphone,
 } from "lucide-react";
 import { useBoard } from "../lib/store";
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -45,33 +48,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="brand-mark">
             <Route size={23} />
           </span>
-          논문길<span className="brand-caption">졸업논문 진행 보드</span>
+          샤논<span className="brand-caption">졸업논문 진행 보드</span>
         </Link>
-        <nav className="role-tabs" aria-label="역할 전환">
-          {[
-            ["/student", "학생"],
-            ["/professor", "교수"],
-            ["/admin", "행정실"],
-          ].map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={path === href ? "page" : undefined}
-            >
-              {label}
+        <div className="header-actions">
+          {!isHome && (
+            <Link href="/" className="home-link">
+              <ArrowLeft size={14} /> 역할 선택으로
             </Link>
-          ))}
-        </nav>
-        <button
-          className="reset-button"
-          onClick={() => {
-            reset();
-            setNotice("데모를 초기 상태로 되돌렸습니다.");
-          }}
-        >
-          <RotateCcw size={14} />
-          <span>데모 초기화</span>
-        </button>
+          )}
+          <button
+            className="reset-button"
+            onClick={() => {
+              reset();
+              setNotice("데모를 초기 상태로 되돌렸습니다.");
+            }}
+          >
+            <RotateCcw size={14} />
+            <span>데모 초기화</span>
+          </button>
+        </div>
       </header>
       <div className={isHome ? "home-shell" : "app-shell"}>
         {!isHome && (
@@ -82,11 +77,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
               진행 대시보드
             </a>
             <a
-              href={path === "/student" ? "#roadmap" : "#applications"}
+              href={
+                path === "/student"
+                  ? "#roadmap"
+                  : path === "/admin"
+                    ? "#capacity"
+                    : "#applications"
+              }
               className="side-link"
             >
               <Route size={18} />
-              {path === "/student" ? "전공별 로드맵" : "지도교수 신청 현황"}
+              {path === "/student"
+                ? "전공별 로드맵"
+                : path === "/admin"
+                  ? "교수별 지도 현황"
+                  : "지도교수 신청 현황"}
             </a>
             <a
               href={path === "/student" ? "#calendar" : "#history"}
@@ -99,21 +104,30 @@ export function Shell({ children }: { children: React.ReactNode }) {
               )}{" "}
               {path === "/student" ? "통합 마감 캘린더" : "변경 이력"}
             </a>
-            <a href="#guide" className="side-link">
+            <a
+              href={path === "/admin" ? "#department-editor" : "#guide"}
+              className="side-link"
+            >
               <FileCheck2 size={18} />
-              학과 절차 안내
+              {path === "/admin" ? "학과 절차 편집" : "학과 절차 안내"}
             </a>
             {path === "/admin" && (
               <div className="upcoming">
                 <div className="sidebar-label">관리 도구</div>
-                {["명단 등록", "요건 관리", "공지 등록", "명단 내보내기"].map(
-                  (v) => (
-                    <button key={v} disabled>
-                      {v}
-                      <small>준비 중</small>
-                    </button>
-                  ),
-                )}
+                <a href="#students" className="side-link">
+                  <Search size={18} />
+                  학생 검색
+                </a>
+                <a href="#announcements" className="side-link">
+                  <Megaphone size={18} />
+                  공지사항 작성
+                </a>
+                {["명단 등록", "명단 내보내기"].map((v) => (
+                  <button key={v} disabled>
+                    {v}
+                    <small>준비 중</small>
+                  </button>
+                ))}
               </div>
             )}
             <div className="sidebar-bottom">
