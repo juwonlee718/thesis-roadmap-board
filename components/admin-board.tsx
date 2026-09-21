@@ -1,194 +1,359 @@
 "use client";
 import { useState } from "react";
-import { CheckCheck, Users, FileClock } from "lucide-react";
+import {
+  BookOpen,
+  GraduationCap,
+  Megaphone,
+  Search,
+  Users,
+} from "lucide-react";
 import { useBoard } from "../lib/store";
-import { departments } from "../data/departments";
-import {
-  assignAdvisor,
-  recordStage,
-  remaining,
-  reviewConfirmation,
-  unconfirmedReason,
-} from "../lib/rules";
+import { publishAnnouncement, remaining } from "../lib/rules";
 import type { Department, Roadmap, Student } from "../lib/types";
-import {
-  Badge,
-  DepartmentGuide,
-  ErrorMessage,
-  HistoryList,
-  StatusMessage,
-} from "./shared";
+import { Badge, ErrorMessage, HistoryList, StatusMessage } from "./shared";
+import { DepartmentEditor } from "./department-editor";
+
 export function AdminBoard() {
   const { data } = useBoard();
   const [filter, setFilter] = useState("all");
-  const [reason, setReason] = useState("all");
-  const rows = data.students
-    .flatMap((s) =>
-      s.roadmaps.map((r) => ({
-        student: s,
-        roadmap: r,
-        department: departments.find((d) => d.id === r.departmentId)!,
-      })),
-    )
-    .filter((row) => filter === "all" || row.department.id === filter);
-  const unconfirmed = rows.filter(
-    (row) => unconfirmedReason(row.roadmap, row.department) !== "확정 완료",
+  const [academicStatus, setAcademicStatus] = useState("all");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const students = data.students.filter(
+    (student) =>
+      (filter === "all" ||
+        student.majors.some((major) => major.departmentId === filter)) &&
+      (academicStatus === "all" ||
+        (academicStatus === "target"
+          ? student.academicStatus !== "재학"
+          : student.academicStatus === academicStatus)) &&
+      `${student.name} ${student.number}`
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
   );
-  const pending = rows.filter(
-    (row) =>
-      row.roadmap.application?.status === "승인" &&
-      row.roadmap.application.review !== "검토 완료",
+  const maxPage = Math.max(1, Math.ceil(students.length / pageSize));
+  const currentPage = Math.min(page, maxPage);
+  const visibleStudents = students.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
   );
-  const reasons = [
-    ...new Set(
-      unconfirmed.map((row) => unconfirmedReason(row.roadmap, row.department)),
-    ),
-  ];
+  const relevantStudents = data.students.filter(
+    (student) =>
+      filter === "all" ||
+      student.majors.some((major) => major.departmentId === filter),
+  );
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">행정실 워크스페이스</div>
+          <div className="eyebrow">학과 조교 워크스페이스</div>
           <h1>
-            함께 보는 졸업 준비<span className="heading-dot">.</span>
+            학과의 절차를 한곳에서<span className="heading-dot">.</span>
           </h1>
           <p>
-            학과별 진행 상태를 확인하고, 필요한 학생에게 다음 길을 열어 주세요.
+            졸업논문 절차와 공지를 관리하고, 소속 학생의 준비 상황을 확인하세요.
           </p>
         </div>
-        <label className="user-picker">
-          학과별 필터
-          <select
-            aria-label="학과별 필터"
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value);
-              setReason("all");
-            }}
-          >
-            <option value="all">전체 학과</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
       <div className="summary-strip">
         <div>
           <Users size={21} />
-          <span>관리 대상 전공</span>
+          <span>학과 소속 학생</span>
           <strong>
-            {rows.length}
-            <small>건</small>
+            {relevantStudents.length}
+            <small>명</small>
           </strong>
         </div>
         <div>
-          <FileClock size={21} />
-          <span>미확정 전공</span>
+          <GraduationCap size={21} />
+          <span>졸업·초과학기</span>
           <strong>
-            {unconfirmed.length}
-            <small>건</small>
+            {
+              relevantStudents.filter(
+                (student) => student.academicStatus !== "재학",
+              ).length
+            }
+            <small>명</small>
           </strong>
         </div>
         <div>
-          <CheckCheck size={21} />
-          <span>확정 검토 필요</span>
+          <BookOpen size={21} />
+          <span>관리 중인 절차</span>
           <strong>
-            {pending.length}
-            <small>건</small>
+            {filter === "all" ? data.departments.length : 1}
+            <small>개 학과</small>
           </strong>
         </div>
       </div>
-      <section className="panel">
+      <section className="panel" id="students">
         <div className="section-heading">
-          <h2>사유별 미확정 학생</h2>
+          <h2>전체 학생 조회</h2>
           <Badge tone="amber">예시 데이터</Badge>
         </div>
-        <div className="filter-chips">
-          <button
-            className={reason === "all" ? "selected" : ""}
-            onClick={() => setReason("all")}
-          >
-            전체 {unconfirmed.length}
-          </button>
-          {reasons.map((r) => (
-            <button
-              className={reason === r ? "selected" : ""}
-              key={r}
-              onClick={() => setReason(r)}
+        <p className="muted small">
+          전공 설정 전 학생과 논문 면제 학생을 포함해 학과 소속 학생 전체를
+          조회합니다. 학생을 펼치면 전공별 진행 상황을 볼 수 있습니다.
+        </p>
+        <div className="grid gap-x-4 md:grid-cols-3">
+          <label className="md:col-span-3">
+            학생 검색
+            <div className="relative">
+              <Search
+                className="absolute right-3 top-3 text-slate-400"
+                size={18}
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="이름 또는 학번 검색"
+                className="pr-10!"
+              />
+            </div>
+          </label>
+          <label>
+            학과별 필터
+            <select
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value);
+                setPage(1);
+              }}
             >
-              {r}{" "}
-              {
-                unconfirmed.filter(
-                  (row) => unconfirmedReason(row.roadmap, row.department) === r,
-                ).length
-              }
-            </button>
+              <option value="all">전체 학과</option>
+              {data.departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            학적 필터
+            <select
+              value={academicStatus}
+              onChange={(event) => {
+                setAcademicStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">전체 학적</option>
+              <option value="target">졸업·초과학기</option>
+              <option>졸업학기</option>
+              <option>초과학기</option>
+              <option>재학</option>
+            </select>
+          </label>
+          <label>
+            페이지당 학생 수
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+            >
+              <option value={10}>10명씩 보기</option>
+              <option value={20}>20명씩 보기</option>
+            </select>
+          </label>
+        </div>
+        <div className="section-heading">
+          <p className="small" role="status">
+            검색 결과 <strong>{students.length}명</strong>
+          </p>
+          <button
+            className="button secondary"
+            onClick={() => {
+              setQuery("");
+              setFilter("all");
+              setAcademicStatus("all");
+              setPage(1);
+            }}
+          >
+            필터 초기화
+          </button>
+        </div>
+        <div className="admin-records">
+          {visibleStudents.map((student) => (
+            <article
+              className="admin-record"
+              key={student.id}
+              data-testid={`student-row-${student.id}`}
+            >
+              <div className="section-heading flex-wrap">
+                <h3>
+                  {student.name}
+                  <small>
+                    {student.number} · {student.graduation} 졸업 예정
+                  </small>
+                </h3>
+                <Badge
+                  tone={
+                    student.academicStatus === "초과학기" ? "amber" : "blue"
+                  }
+                >
+                  {student.academicStatus}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {student.majors.map((major) => {
+                  const department = data.departments.find(
+                    (item) => item.id === major.departmentId,
+                  );
+                  return (
+                    <span className="badge neutral" key={major.departmentId}>
+                      {department?.name ?? "정보 확인 필요"} ·{" "}
+                      {major.type === "primary" ? "주전공" : "복수전공"}
+                      {department?.requirements[major.type] === "면제"
+                        ? " · 논문 면제"
+                        : ""}
+                    </span>
+                  );
+                })}
+                {!student.configured && (
+                  <Badge tone="amber">전공 설정 전</Badge>
+                )}
+              </div>
+              <button
+                className="button secondary"
+                aria-expanded={expanded === student.id}
+                aria-controls={`student-detail-${student.id}`}
+                onClick={() =>
+                  setExpanded(expanded === student.id ? null : student.id)
+                }
+              >
+                {expanded === student.id
+                  ? "진행 현황 접기"
+                  : "전공별 진행 현황 보기"}
+              </button>
+              {expanded === student.id && (
+                <div
+                  className="mt-4 grid gap-3"
+                  id={`student-detail-${student.id}`}
+                >
+                  {!student.configured && (
+                    <p className="muted small">
+                      학생이 전공을 확인하면 로드맵이 생성됩니다. 소속 학과
+                      명단에는 포함되어 있습니다.
+                    </p>
+                  )}
+                  {student.majors
+                    .filter(
+                      (major) =>
+                        filter === "all" || major.departmentId === filter,
+                    )
+                    .map((major) => {
+                      const department = data.departments.find(
+                        (item) => item.id === major.departmentId,
+                      );
+                      const roadmap = student.roadmaps.find(
+                        (item) => item.departmentId === major.departmentId,
+                      );
+                      if (!department) return null;
+                      if (department.requirements[major.type] === "면제")
+                        return (
+                          <div className="exempt-row" key={department.id}>
+                            <strong>{department.name}</strong>
+                            <Badge>논문 면제</Badge>
+                          </div>
+                        );
+                      return roadmap ? (
+                        <StudentRecord
+                          key={department.id}
+                          student={student}
+                          roadmap={roadmap}
+                          department={department}
+                        />
+                      ) : (
+                        <p className="small muted" key={department.id}>
+                          {department.name} · 로드맵 생성 전
+                        </p>
+                      );
+                    })}
+                </div>
+              )}
+            </article>
           ))}
         </div>
-        <div className="unconfirmed-list">
-          {unconfirmed
-            .filter(
-              (row) =>
-                reason === "all" ||
-                unconfirmedReason(row.roadmap, row.department) === reason,
-            )
-            .map(({ student: s, roadmap: r, department: d }) => (
-              <a key={s.id + d.id} href={`#record-${s.id}-${d.id}`}>
-                <span>
-                  <strong>{s.name}</strong>
-                  <small>{d.name}</small>
-                </span>
-                <Badge tone="neutral">{unconfirmedReason(r, d)}</Badge>
-              </a>
-            ))}
-        </div>
-        {!unconfirmed.length && (
-          <p className="empty">모든 대상의 지도교수가 확정되었습니다.</p>
-        )}
-        {data.students.some((s) => !s.configured) && (
-          <p className="muted small">
-            전공 설정 전 학생:{" "}
-            {data.students
-              .filter((s) => !s.configured)
-              .map((s) => s.name)
-              .join(", ")}{" "}
-            · 학생 화면에서 설정 후 관리 대상에 포함됩니다.
+        {!students.length && (
+          <p className="empty">
+            조건에 맞는 학생이 없습니다. 검색어나 필터를 변경해 주세요.
           </p>
         )}
+        <nav
+          aria-label="학생 목록 페이지"
+          className="action-row items-center justify-center"
+        >
+          <button
+            className="button secondary"
+            disabled={currentPage === 1}
+            onClick={() => {
+              setPage(currentPage - 1);
+              setExpanded(null);
+            }}
+          >
+            이전
+          </button>
+          <span className="small">
+            {currentPage} / {maxPage} 페이지
+          </span>
+          <button
+            className="button secondary"
+            disabled={currentPage === maxPage}
+            onClick={() => {
+              setPage(currentPage + 1);
+              setExpanded(null);
+            }}
+          >
+            다음
+          </button>
+        </nav>
       </section>
-      <section className="panel">
+      <DepartmentEditor />
+      <AnnouncementEditor />
+      <section className="panel" id="capacity">
         <div className="section-heading">
-          <h2>교수별 정원</h2>
-          <span className="muted">정원 적용 학과만 집계</span>
+          <h2>교수별 지도 현황</h2>
+          <span className="muted">정원은 교수 화면에서 관리합니다</span>
         </div>
         <div className="capacity-grid">
           {data.professors
-            .filter((p) => filter === "all" || p.departmentId === filter)
-            .map((p) => {
-              const d = departments.find((d) => d.id === p.departmentId)!;
+            .filter(
+              (professor) =>
+                filter === "all" || professor.departmentId === filter,
+            )
+            .map((professor) => {
+              const department = data.departments.find(
+                (item) => item.id === professor.departmentId,
+              );
               return (
-                <article key={p.id}>
+                <article key={professor.id}>
                   <div>
-                    <strong>{p.name}</strong>
-                    <small>{d.name}</small>
+                    <strong>{professor.name}</strong>
+                    <small>{department?.name}</small>
                   </div>
-                  {d.usesCapacity ? (
+                  {department?.usesCapacity ? (
                     <>
-                      <Badge tone={remaining(p) ? "" : "amber"}>
-                        {remaining(p)
-                          ? `남은 자리 ${remaining(p)}명`
+                      <Badge tone={remaining(professor) > 0 ? "blue" : "amber"}>
+                        {remaining(professor) > 0
+                          ? `남은 자리 ${remaining(professor)}명`
                           : "정원 마감"}
                       </Badge>
                       <p>
-                        {p.assigned}명 배정 / {p.capacity}명 정원
+                        {professor.assigned}명 배정 / {professor.capacity}명
+                        정원
                       </p>
                       <div className="progress-track">
                         <span
                           style={{
-                            width: `${p.capacity ? (p.assigned / p.capacity) * 100 : 0}%`,
+                            width: `${professor.capacity ? Math.min(100, (professor.assigned / professor.capacity) * 100) : 0}%`,
                           }}
                         />
                       </div>
@@ -201,100 +366,45 @@ export function AdminBoard() {
             })}
         </div>
       </section>
-      <section className="panel" id="applications">
-        <div className="section-heading">
-          <h2>학생별 · 전공별 진행 현황</h2>
-          <span className="muted">신청 현황과 확정 검토</span>
-        </div>
-        <div className="admin-records">
-          {rows.map((row) => (
-            <AdminRecord key={row.student.id + row.department.id} {...row} />
-          ))}
-        </div>
-        {data.students.flatMap((s) =>
-          s.majors
-            .filter(
-              (m) =>
-                departments.find((d) => d.id === m.departmentId)?.requirements[
-                  m.type
-                ] === "면제" &&
-                (filter === "all" || m.departmentId === filter),
-            )
-            .map((m) => (
-              <div className="exempt-row" key={s.id + m.departmentId}>
-                <strong>{s.name}</strong>
-                <span>
-                  {departments.find((d) => d.id === m.departmentId)?.name} ·
-                  복수전공
-                </span>
-                <Badge>논문 면제</Badge>
-              </div>
-            )),
-        )}
-      </section>
       <HistoryList
         events={data.history.filter(
-          (h) => filter === "all" || h.departmentId === filter,
+          (event) => filter === "all" || event.departmentId === filter,
         )}
         students={data.students}
       />
-      <section className="panel" id="guide">
-        {departments
-          .filter((d) => filter === "all" || d.id === filter)
-          .map((d) => (
-            <DepartmentGuide key={d.id} department={d} />
-          ))}
-      </section>
     </>
   );
 }
-function AdminRecord({
-  student: s,
-  roadmap: r,
-  department: d,
+
+function StudentRecord({
+  student,
+  roadmap,
+  department,
 }: {
   student: Student;
   roadmap: Roadmap;
   department: Department;
 }) {
-  const { data, change } = useBoard();
-  const [feedback, setFeedback] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [professorId, setProfessorId] = useState(
-    data.professors.find((p) => p.departmentId === d.id)?.id ?? "",
+  const { data } = useBoard();
+  const application = roadmap.application;
+  const current = department.stages[roadmap.currentStage];
+  const enrollment = student.courseEnrollments.find(
+    (item) => item.departmentId === department.id,
   );
-  const a = r.application;
-  const current = d.stages[r.currentStage];
-  const run = (fn: Parameters<typeof change>[0], msg: string) => {
-    try {
-      change(fn);
-      setError("");
-      setMessage(msg);
-    } catch (e) {
-      setError((e as Error).message);
-      setMessage("");
-    }
-  };
-  const ctx = () => ({ actor: "가상 행정실", at: new Date().toISOString() });
+  const professorId = application?.professorId ?? enrollment?.professorId;
+  const professor = data.professors.find((item) => item.id === professorId);
+  const latestThesis = roadmap.thesis?.versions.at(-1);
   return (
-    <article
-      id={`record-${s.id}-${d.id}`}
+    <section
       className="admin-record"
-      data-testid={`admin-${s.id}-${d.id}`}
+      data-testid={`admin-${student.id}-${department.id}`}
     >
       <div className="section-heading">
-        <h3>
-          {s.name}
-          <small>
-            {d.name} ·{" "}
-            {s.majors.find((m) => m.departmentId === d.id)?.type === "primary"
-              ? "주전공"
-              : "복수전공"}
-          </small>
-        </h3>
-        <Badge tone={a?.review === "검토 완료" ? "" : "amber"}>
-          {unconfirmedReason(r, d)}
+        <h3>{department.name}</h3>
+        <Badge
+          tone={application?.status === "승인" || enrollment ? "blue" : "amber"}
+        >
+          {enrollment ? "수강 수업 연계" : (application?.status ?? "미신청")}
         </Badge>
       </div>
       <div className="record-overview">
@@ -304,170 +414,168 @@ function AdminRecord({
         </p>
         <p>
           <span>지도교수</span>
+          <strong>{professor?.name ?? "미확정"}</strong>
+        </p>
+        <p>
+          <span>완료한 단계</span>
           <strong>
-            {data.professors.find((p) => p.id === a?.professorId)?.name ??
-              "미배정"}
+            {roadmap.completed.length} / {department.stages.length}
           </strong>
         </p>
         <p>
-          <span>신청 상태</span>
-          <strong>{a?.status ?? "미신청"}</strong>
-        </p>
-        <p>
-          <span>서류 상태</span>
+          <span>다음 마감</span>
           <strong>
-            {current
-              ? r.submitted.includes(current.id)
-                ? "제출 완료"
-                : current.kind === "result" || current.kind === "advisor"
-                  ? "확인 대기"
-                  : "미제출"
-              : "완료"}
+            {current?.deadline || (current ? "정보 확인 필요" : "전체 완료")}
           </strong>
         </p>
       </div>
+      {enrollment && (
+        <p className="small muted">
+          수강 정보: {enrollment.courseName} · 지도교수는 수강 수업과
+          연결됩니다.
+        </p>
+      )}
+      {latestThesis && (
+        <div className="feedback">
+          <p>
+            <strong>최종 논문 심사</strong> · {latestThesis.status}
+          </p>
+          <p>
+            {latestThesis.fileName} · {roadmap.thesis?.versions.length}차 제출
+          </p>
+          {latestThesis.feedback && <p>교수 피드백: {latestThesis.feedback}</p>}
+        </div>
+      )}
       <details>
-        <summary>전공 진행 단계와 신청 상세</summary>
+        <summary>진행 단계와 신청 내용</summary>
         <ol className="compact-stages">
-          {d.stages.map((stage, index) => (
+          {department.stages.map((stage, index) => (
             <li key={stage.id}>
               <span>{stage.name}</span>
               <span>
-                {r.completed.includes(stage.id)
+                {roadmap.completed.includes(stage.id)
                   ? "완료"
-                  : stage.kind === "advisor" && a?.status === "승인"
-                    ? a.review
-                    : index === r.currentStage
-                      ? "진행 중"
-                      : "예정"}{" "}
-                ·{" "}
-                {r.submitted.includes(stage.id)
-                  ? "제출 기록 있음"
-                  : stage.deadline || "정보 확인 필요"}
+                  : index === roadmap.currentStage
+                    ? "진행 중"
+                    : "예정"}{" "}
+                · {stage.deadline || "정보 확인 필요"}
               </span>
             </li>
           ))}
         </ol>
-        {a && (
+        {application && (
           <div className="feedback">
-            <p>연구 주제: {a.topic}</p>
-            <p>연구계획: {a.plan}</p>
-            <p>신청일: {a.requestedAt.slice(0, 10)}</p>
-            {a.feedback && <p>교수 피드백: {a.feedback}</p>}
-            {a.reviewFeedback && <p>행정실 피드백: {a.reviewFeedback}</p>}
+            <p>연구 주제: {application.topic}</p>
+            <p>연구계획: {application.plan}</p>
+            <p>신청일: {application.requestedAt.slice(0, 10)}</p>
+            {application.feedback && <p>교수 피드백: {application.feedback}</p>}
           </div>
         )}
       </details>
-      {a?.status === "승인" && a.review !== "검토 완료" && (
-        <div className="review-form">
-          <label>
-            확정 검토 피드백
-            <textarea
-              aria-label={`${s.name} ${d.name} 확정 검토 피드백`}
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              placeholder="보완 요청 사유를 입력해 주세요"
-            />
-          </label>
-          <div className="action-row">
-            <button
-              className="button primary"
-              onClick={() =>
-                run(
-                  (state) =>
-                    reviewConfirmation(
-                      state,
-                      departments,
-                      s.id,
-                      d.id,
-                      "검토 완료",
-                      feedback,
-                      ctx(),
-                    ),
-                  "지도교수 확정 검토를 완료했습니다.",
-                )
-              }
-            >
-              검토 완료
-            </button>
-            <button
-              className="button secondary"
-              onClick={() =>
-                run(
-                  (state) =>
-                    reviewConfirmation(
-                      state,
-                      departments,
-                      s.id,
-                      d.id,
-                      "보완 요청",
-                      feedback,
-                      ctx(),
-                    ),
-                  "학생에게 보완 요청을 전달했습니다.",
-                )
-              }
-            >
-              보완 요청
-            </button>
-          </div>
-        </div>
-      )}
-      {d.advisorMethod === "course_assigned" && !a && (
-        <div className="inline-form">
-          <label>
-            배정할 지도교수
-            <select
-              aria-label={`${s.name} 배정할 지도교수`}
-              value={professorId}
-              onChange={(e) => setProfessorId(e.target.value)}
-            >
-              {data.professors
-                .filter((p) => p.departmentId === d.id)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button
-            className="button secondary"
-            onClick={() =>
-              run(
-                (state) =>
-                  assignAdvisor(
-                    state,
-                    departments,
-                    s.id,
-                    d.id,
-                    professorId,
-                    ctx(),
-                  ),
-                "수업 배정 결과를 등록했습니다.",
-              )
-            }
-          >
-            지도교수 배정
-          </button>
-        </div>
-      )}
-      {current?.kind === "result" && (
-        <button
-          className="button secondary"
-          onClick={() =>
-            run(
-              (state) =>
-                recordStage(state, departments, s.id, d.id, true, ctx()),
-              "최종 결과를 확인했습니다.",
-            )
+    </section>
+  );
+}
+
+function AnnouncementEditor() {
+  const { data, change } = useBoard();
+  const [departmentId, setDepartmentId] = useState(
+    data.departments[0]?.id ?? "",
+  );
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const announcements = data.announcements.filter(
+    (item) => item.departmentId === departmentId,
+  );
+  return (
+    <section className="panel" id="announcements">
+      <div className="section-heading">
+        <h2>학과 공지사항</h2>
+        <Megaphone size={20} />
+      </div>
+      <p className="muted small">
+        등록한 공지는 해당 학과를 전공하는 학생 화면에 표시됩니다.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          try {
+            change((state) =>
+              publishAnnouncement(
+                state,
+                { departmentId, title, body },
+                { actor: "가상 학과 조교", at: new Date().toISOString() },
+              ),
+            );
+            setTitle("");
+            setBody("");
+            setError("");
+            setMessage(
+              "공지를 등록했습니다. 해당 학과 학생 화면에 반영되었습니다.",
+            );
+          } catch (exception) {
+            setError((exception as Error).message);
+            setMessage("");
           }
-        >
-          결과 확인 완료
+        }}
+      >
+        <label>
+          공지 대상 학과
+          <select
+            value={departmentId}
+            onChange={(event) => {
+              setDepartmentId(event.target.value);
+              setMessage("");
+              setError("");
+            }}
+          >
+            {data.departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          공지 제목
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="일정 변경이나 제출 안내를 적어 주세요"
+          />
+        </label>
+        <label>
+          공지 내용
+          <textarea
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            rows={4}
+          />
+        </label>
+        <button type="submit" className="button primary">
+          공지 등록
         </button>
-      )}
-      <ErrorMessage message={error} />
-      <StatusMessage message={message} />
-    </article>
+        <ErrorMessage message={error} />
+        <StatusMessage message={message} />
+      </form>
+      <div className="mt-6 grid gap-3">
+        {announcements.map((announcement) => (
+          <article className="admin-record" key={announcement.id}>
+            <h3>{announcement.title}</h3>
+            <p className="small whitespace-pre-wrap break-words mt-2">
+              {announcement.body}
+            </p>
+            <small className="muted">
+              {announcement.author} ·{" "}
+              {new Date(announcement.createdAt).toLocaleDateString("ko-KR")}
+            </small>
+          </article>
+        ))}
+        {!announcements.length && (
+          <p className="empty">아직 등록한 공지가 없습니다.</p>
+        )}
+      </div>
+    </section>
   );
 }

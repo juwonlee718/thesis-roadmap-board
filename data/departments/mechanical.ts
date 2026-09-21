@@ -6,12 +6,12 @@ export const mechanical: Department = {
   semester: "2026-2학기",
   source: "가상",
   sourceDescription:
-    "전공 수업에서 지도교수를 배정하는 방식을 설명하는 가상 데이터입니다.",
+    "수강 신청한 교수별 수업과 지도교수를 자동 연결하는 가상 데이터입니다.",
   verifiedAt: "2026-09-21",
   officialLink: "예시 링크(가상)",
   requirements: { primary: "필수", secondary: "필수" },
   advisorMethod: "course_assigned",
-  usesCapacity: false,
+  usesCapacity: true,
   color: "#5076be",
   stages: [
     stage(
@@ -21,7 +21,7 @@ export const mechanical: Department = {
       "course",
       "수업",
       ["수강 확인 내역"],
-      "졸업논문 수업을 수강하고 수강 상태를 기록하세요.",
+      "수강 신청한 교수별 졸업논문 수업 정보가 자동 반영됩니다.",
     ),
     stage(
       "advisor",
@@ -30,7 +30,7 @@ export const mechanical: Department = {
       "advisor",
       "수업",
       ["배정 확인 내역"],
-      "행정실이 수업의 배정 결과를 등록합니다. 학생은 별도 신청하지 않습니다.",
+      "수강한 수업의 담당 교수가 지도교수로 자동 연결됩니다. 별도의 행정실 배정은 없습니다.",
     ),
     stage(
       "interim",
@@ -45,7 +45,7 @@ export const mechanical: Department = {
       "final",
       "최종논문 제출",
       "2026-12-04",
-      "submission",
+      "thesis",
       "수업",
       ["최종논문"],
       "수업 담당자에게 최종논문을 제출하세요.",
@@ -57,7 +57,7 @@ export const mechanical: Department = {
       "result",
       "수업",
       ["성적 확인 내역"],
-      "행정실이 성적 반영 결과를 확인합니다.",
+      "지도교수의 최종논문 승인 결과가 반영됩니다.",
     ),
   ],
 };

@@ -6,12 +6,12 @@ export const psychology: Department = {
   semester: "2026-2학기",
   source: "가상",
   sourceDescription:
-    "직접 컨택과 승인 절차를 설명하기 위해 만든 가상 학과 데이터입니다.",
+    "사이트 내 지도 상담과 승인 절차를 설명하는 가상 학과 데이터입니다.",
   verifiedAt: "2026-09-21",
   officialLink: "예시 링크(가상)",
   requirements: { primary: "필수", secondary: "필수" },
   advisorMethod: "contact_approval",
-  usesCapacity: false,
+  usesCapacity: true,
   color: "#287768",
   stages: [
     stage(
@@ -21,7 +21,7 @@ export const psychology: Department = {
       "advisor",
       "시스템",
       ["지도교수 승인 요청서"],
-      "교수에게 직접 컨택한 후 승인 요청을 보내세요. 교수 승인과 행정실 확정 검토가 필요합니다.",
+      "연구 주제와 계획을 작성해 교수에게 지도 요청을 보내세요. 사이트에서 면담 요청과 승인 결과를 확인합니다.",
     ),
     stage(
       "writing",
@@ -36,7 +36,7 @@ export const psychology: Department = {
       "review",
       "심사 제출",
       "2026-11-27",
-      "submission",
+      "thesis",
       "시스템",
       ["최종논문", "심사 신청서"],
       "심사에 필요한 논문과 신청서를 제출하세요.",
@@ -48,7 +48,7 @@ export const psychology: Department = {
       "result",
       "이메일",
       ["심사 결과서"],
-      "행정실이 심사 결과를 확인하고 완료 상태를 기록합니다.",
+      "지도교수의 최종논문 심사 결과가 자동 반영됩니다.",
     ),
   ],
 };

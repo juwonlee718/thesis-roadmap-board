@@ -11,7 +11,6 @@ import {
   Flag,
   Layers3,
 } from "lucide-react";
-import { departments } from "../data/departments";
 import { useBoard } from "../lib/store";
 import {
   calendarEvents,
@@ -24,7 +23,7 @@ import {
   recordStage,
   remaining,
   requestAdvisor,
-  resubmitReview,
+  saveResearchDraft,
 } from "../lib/rules";
 import type { Department, Roadmap, Student } from "../lib/types";
 import {
@@ -35,6 +34,7 @@ import {
   StageDetails,
   StatusMessage,
 } from "./shared";
+import { StudentThesis } from "./thesis-file";
 export function StudentBoard() {
   const { data, studentId, selectStudent } = useBoard();
   const s = data.students.find((s) => s.id === studentId)!;
@@ -80,6 +80,7 @@ export function StudentBoard() {
   );
 }
 function MajorSetup({ student: s }: { student: Student }) {
+  const departments = useBoard((s) => s.data.departments);
   const change = useBoard((s) => s.change);
   const [primary, setPrimary] = useState(
     s.majors.find((m) => m.type === "primary")?.departmentId ??
@@ -179,6 +180,7 @@ function MajorSetup({ student: s }: { student: Student }) {
   );
 }
 function StudentJourney({ student: s }: { student: Student }) {
+  const { departments, announcements } = useBoard((s) => s.data);
   const [selected, setSelected] = useState(
     s.roadmaps[0]?.departmentId ?? s.majors[0].departmentId,
   );
@@ -309,6 +311,37 @@ function StudentJourney({ student: s }: { student: Student }) {
           <section id="guide" className="panel">
             <DepartmentGuide department={d} />
           </section>
+          <section id="announcements" className="panel">
+            <div className="section-heading">
+              <h2>내 전공 공지사항</h2>
+            </div>
+            {announcements.filter((a) =>
+              s.majors.some((m) => m.departmentId === a.departmentId),
+            ).length ? (
+              announcements
+                .filter((a) =>
+                  s.majors.some((m) => m.departmentId === a.departmentId),
+                )
+                .map((a) => (
+                  <article className="request-card" key={a.id}>
+                    <Badge tone="blue">
+                      {
+                        departments.find(
+                          (department) => department.id === a.departmentId,
+                        )?.name
+                      }
+                    </Badge>
+                    <h3>{a.title}</h3>
+                    <p style={{ whiteSpace: "pre-wrap" }}>{a.body}</p>
+                    <small className="muted">
+                      {a.createdAt.slice(0, 10)} · {a.author}
+                    </small>
+                  </article>
+                ))
+            ) : (
+              <p className="muted">등록된 전공 공지사항이 없습니다.</p>
+            )}
+          </section>
         </div>
         <aside className="calendar-column">
           <DeadlineCalendar student={s} />
@@ -316,8 +349,8 @@ function StudentJourney({ student: s }: { student: Student }) {
             <span className="eyebrow">함께 확인하는 진행 상태</span>
             <h3>승인이 끝나면, 다음 단계로.</h3>
             <p>
-              교수 승인 후 다음 단계를 준비할 수 있어요. 지도교수 최종 확정은
-              행정실 검토까지 완료되어야 합니다.
+              이곳에서 연구 계획을 보내고 교수와 면담·수정을 진행하세요. 교수
+              승인과 최종논문 심사 결과가 로드맵에 바로 반영됩니다.
             </p>
             <Badge tone="amber">예시 데이터</Badge>
             <p className="small">실제 서류·일정은 학과 공지를 확인하세요.</p>
@@ -337,9 +370,9 @@ function RoadmapView({
   roadmap: Roadmap;
 }) {
   const { data, change } = useBoard();
+  const departments = data.departments;
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [response, setResponse] = useState("");
   const current = d.stages[r.currentStage];
   const app = r.application;
   const professor = data.professors.find((p) => p.id === app?.professorId);
@@ -383,10 +416,6 @@ function RoadmapView({
       <ol className="timeline">
         {d.stages.map((stage, index) => {
           const completed = r.completed.includes(stage.id);
-          const waiting =
-            stage.kind === "advisor" &&
-            app?.status === "승인" &&
-            app.review !== "검토 완료";
           const active = index === r.currentStage;
           return (
             <li
@@ -409,22 +438,16 @@ function RoadmapView({
                     </small>
                   </span>
                   <Badge tone={completed ? "" : active ? "blue" : "neutral"}>
-                    {completed
-                      ? "완료"
-                      : waiting
-                        ? app.review
-                        : active
-                          ? "진행 중"
-                          : "예정"}
+                    {completed ? "완료" : active ? "진행 중" : "예정"}
                   </Badge>
                 </summary>
                 <StageDetails stage={stage} />
                 {active &&
                   stage.kind !== "advisor" &&
-                  stage.kind !== "result" && (
+                  stage.kind !== "result" &&
+                  stage.kind !== "thesis" && (
                     <button
                       className="button secondary"
-                      disabled={app?.review === "보완 요청"}
                       onClick={() =>
                         run(
                           (state) =>
@@ -443,7 +466,7 @@ function RoadmapView({
                   )}
                 {active && stage.kind === "result" && (
                   <p className="muted">
-                    행정실의 결과 확인을 기다리고 있습니다.
+                    지도교수의 최종논문 심사 결과가 반영되는 단계입니다.
                   </p>
                 )}
               </details>
@@ -453,9 +476,12 @@ function RoadmapView({
       </ol>
       <ErrorMessage message={error} />
       <StatusMessage message={message} />
+      {d.stages.some((stage) => stage.kind === "thesis") && (
+        <StudentThesis student={s} department={d} roadmap={r} />
+      )}
       <div id="advisor" className="advisor-section">
         <div className="section-heading">
-          <h3>지도교수 신청·배정</h3>
+          <h3>지도교수 신청·진행</h3>
           {app && (
             <Badge tone={app.status === "승인" ? "" : "amber"}>
               {app.status}
@@ -470,9 +496,7 @@ function RoadmapView({
             <small>신청·배정일 {app.requestedAt.slice(0, 10)}</small>
             {app.status === "승인" && (
               <p className="confirmation" data-testid="confirmation">
-                {app.review === "검토 완료"
-                  ? "지도교수 확정 완료"
-                  : `교수 승인 · 행정실 ${app.review}`}
+                지도교수 확정 완료
               </p>
             )}
             {app.feedback && (
@@ -481,54 +505,26 @@ function RoadmapView({
                 <p>{app.feedback}</p>
               </div>
             )}
-            {app.reviewFeedback && (
-              <div className="feedback">
-                <strong>행정실 피드백</strong>
-                <p>{app.reviewFeedback}</p>
-              </div>
-            )}
-            {app.review === "보완 요청" && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  run(
-                    (state) =>
-                      resubmitReview(state, departments, s.id, d.id, response, {
-                        actor: s.name,
-                        at: new Date().toISOString(),
-                      }),
-                    "행정실에 재검토를 요청했습니다.",
-                  );
-                }}
-              >
-                <label>
-                  보완 내용
-                  <textarea
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                  />
-                </label>
-                <button className="button secondary">
-                  보완 후 재검토 요청
-                </button>
-              </form>
-            )}
           </div>
         )}
         {d.advisorMethod === "course_assigned" ? (
           <p className="muted">
-            전공 수업에서 지도교수가 배정됩니다.{" "}
+            교수별 졸업논문 수강 정보로 지도교수가 자동 연결됩니다.{" "}
             {app
-              ? "등록된 배정 결과를 확인하세요."
-              : "학생 신청 없이 행정실이 배정 결과를 등록합니다."}
+              ? s.courseEnrollments.find(
+                  (enrollment) => enrollment.departmentId === d.id,
+                )?.courseName
+              : "등록된 수강 정보가 없습니다. 학과 담당자에게 수강 정보를 확인하세요."}
           </p>
-        ) : !app || !["승인", "대기"].includes(app.status) ? (
+        ) : !app || !["승인", "대기", "면담 요청"].includes(app.status) ? (
           <AdvisorForm student={s} department={d} />
         ) : (
           <p className="muted">
             {app.status === "대기"
               ? "교수의 검토를 기다리고 있습니다. 결과와 피드백이 이곳에 표시됩니다."
-              : "교수 승인 기록이 서명·이메일 증빙을 대체합니다."}
+              : app.status === "면담 요청"
+                ? "교수 피드백에 따라 면담을 진행하세요. 면담 후 교수가 이 신청에서 승인·수정 요청·반려를 처리합니다."
+                : "교수 승인 기록이 서명·이메일 증빙을 대체합니다."}
           </p>
         )}
       </div>
@@ -543,10 +539,16 @@ function AdvisorForm({
   department: Department;
 }) {
   const { data, change } = useBoard();
-  const [topic, setTopic] = useState("");
-  const [plan, setPlan] = useState("");
-  const [contacted, setContacted] = useState(false);
+  const departments = data.departments;
+  const roadmap = s.roadmaps.find((r) => r.departmentId === d.id)!;
+  const [topic, setTopic] = useState(
+    roadmap.draft?.topic ?? roadmap.application?.topic ?? "",
+  );
+  const [plan, setPlan] = useState(
+    roadmap.draft?.plan ?? roadmap.application?.plan ?? "",
+  );
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   return (
     <div>
       <label>
@@ -565,17 +567,38 @@ function AdvisorForm({
           placeholder="연구 질문과 방법, 계획을 적어 주세요"
         />
       </label>
-      {d.advisorMethod === "contact_approval" && (
-        <label className="check-option">
-          <input
-            type="checkbox"
-            checked={contacted}
-            onChange={(e) => setContacted(e.target.checked)}
-          />
-          교수 컨택 완료
-        </label>
-      )}
+      <div className="action-row">
+        <button
+          className="button secondary"
+          onClick={() => {
+            try {
+              change((state) =>
+                saveResearchDraft(
+                  state,
+                  state.departments,
+                  s.id,
+                  d.id,
+                  { topic, plan },
+                  { actor: s.name, at: new Date().toISOString() },
+                ),
+              );
+              setError("");
+              setMessage("연구 주제와 계획을 초안으로 저장했습니다.");
+            } catch (e) {
+              setError((e as Error).message);
+              setMessage("");
+            }
+          }}
+        >
+          연구계획 초안 저장
+        </button>
+      </div>
+      <p className="muted small">
+        교수를 선택하기 전에도 초안을 저장할 수 있어요. 준비되면 아래 교수에게
+        지도 요청을 보내세요. 면담과 승인 결과를 이 화면에서 확인합니다.
+      </p>
       <ErrorMessage message={error} />
+      <StatusMessage message={message} />
       <div className="professor-options">
         {data.professors
           .filter((p) => p.departmentId === d.id)
@@ -593,7 +616,7 @@ function AdvisorForm({
               </div>
               <button
                 className="button secondary"
-                aria-label={`${p.name} ${canApply(d, p) ? "승인 요청" : "정원 마감"}`}
+                aria-label={`${p.name} ${canApply(d, p) ? "지도 요청" : "정원 마감"}`}
                 disabled={!canApply(d, p)}
                 onClick={() => {
                   try {
@@ -604,7 +627,7 @@ function AdvisorForm({
                         s.id,
                         d.id,
                         p.id,
-                        { topic, plan, contacted },
+                        { topic, plan },
                         { actor: s.name, at: new Date().toISOString() },
                       ),
                     );
@@ -614,11 +637,7 @@ function AdvisorForm({
                   }
                 }}
               >
-                {canApply(d, p)
-                  ? d.advisorMethod === "contact_approval"
-                    ? "승인 요청"
-                    : "지도 신청"
-                  : "정원 마감"}
+                {canApply(d, p) ? "지도 요청" : "정원 마감"}
                 <ArrowRight size={14} />
               </button>
             </article>
@@ -628,14 +647,32 @@ function AdvisorForm({
   );
 }
 function DeadlineCalendar({ student }: { student: Student }) {
-  const [month, setMonth] = useState(9);
+  const departments = useBoard((s) => s.data.departments);
   const events = calendarEvents(student, departments);
-  const conflicts = overlappingWeeks(student, departments);
-  const start = (new Date(Date.UTC(2026, month - 1, 1)).getUTCDay() + 6) % 7;
-  const count = new Date(Date.UTC(2026, month, 0)).getUTCDate();
-  const shown = events.filter((e) =>
-    e.stage.deadline.startsWith(`2026-${String(month).padStart(2, "0")}`),
+  const datedEvents = events.filter((e) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(e.stage.deadline),
   );
+  const firstMonth =
+    datedEvents[0]?.stage.deadline.slice(0, 7) ??
+    new Date().toISOString().slice(0, 7);
+  const lastMonth =
+    datedEvents.at(-1)?.stage.deadline.slice(0, 7) ?? firstMonth;
+  const [selectedMonth, setSelectedMonth] = useState(firstMonth);
+  const visibleMonth =
+    selectedMonth < firstMonth
+      ? firstMonth
+      : selectedMonth > lastMonth
+        ? lastMonth
+        : selectedMonth;
+  const [year, month] = visibleMonth.split("-").map(Number);
+  const moveMonth = (delta: number) =>
+    setSelectedMonth(
+      new Date(Date.UTC(year, month - 1 + delta, 1)).toISOString().slice(0, 7),
+    );
+  const conflicts = overlappingWeeks(student, departments);
+  const start = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const shown = events.filter((e) => e.stage.deadline.startsWith(visibleMonth));
   return (
     <section className="panel calendar-panel" id="calendar">
       <div className="section-heading">
@@ -656,16 +693,18 @@ function DeadlineCalendar({ student }: { student: Student }) {
       <div className="calendar-nav">
         <button
           aria-label="이전 달"
-          disabled={month === 9}
-          onClick={() => setMonth(month - 1)}
+          disabled={visibleMonth <= firstMonth}
+          onClick={() => moveMonth(-1)}
         >
           <ChevronLeft size={18} />
         </button>
-        <strong>2026년 {month}월</strong>
+        <strong>
+          {year}년 {month}월
+        </strong>
         <button
           aria-label="다음 달"
-          disabled={month === 12}
-          onClick={() => setMonth(month + 1)}
+          disabled={visibleMonth >= lastMonth}
+          onClick={() => moveMonth(1)}
         >
           <ChevronRight size={18} />
         </button>

@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createSeed } from "../data/seed";
+import { createSeed, migrateBoard } from "../data/seed";
 import type { BoardState } from "./types";
 type BoardStore = {
   data: BoardState;
@@ -15,12 +15,35 @@ type BoardStore = {
 };
 export const useBoard = create<BoardStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       data: createSeed(),
       studentId: "s1",
       professorId: "psychology-p1",
       hydrated: false,
-      change: (fn) => set((state) => ({ data: fn(state.data) })),
+      change: (fn) => {
+        const current = get();
+        const data = fn(current.data);
+        const serialized = JSON.stringify({
+          state: {
+            data,
+            studentId: current.studentId,
+            professorId: current.professorId,
+          },
+          version: 2,
+        });
+        if (serialized.length > 2_000_000)
+          throw new Error(
+            "브라우저 저장 공간이 부족합니다. 더 작은 파일을 선택해 주세요.",
+          );
+        try {
+          localStorage.setItem("thesis-board-v1", serialized);
+        } catch {
+          throw new Error(
+            "저장 공간이 부족하거나 브라우저 저장이 차단되었습니다. 변경을 저장하지 못했습니다.",
+          );
+        }
+        set({ data });
+      },
       selectStudent: (studentId) => set({ studentId }),
       selectProfessor: (professorId) => set({ professorId }),
       reset: () =>
@@ -32,7 +55,19 @@ export const useBoard = create<BoardStore>()(
     }),
     {
       name: "thesis-board-v1",
-      version: 1,
+      version: 2,
+      migrate: (persisted) => {
+        const old = persisted as {
+          data?: BoardState;
+          studentId?: string;
+          professorId?: string;
+        };
+        return {
+          data: migrateBoard(old.data ?? {}),
+          studentId: old.studentId ?? "s1",
+          professorId: old.professorId ?? "psychology-p1",
+        };
+      },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       partialize: (state) => ({

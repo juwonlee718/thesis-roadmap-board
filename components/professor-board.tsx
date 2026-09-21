@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Users, UserCheck, Clock3 } from "lucide-react";
 import { useBoard } from "../lib/store";
-import { departments } from "../data/departments";
 import {
   canApprove,
   decideApplication,
@@ -23,8 +22,10 @@ import {
   HistoryList,
   StatusMessage,
 } from "./shared";
+import { ProfessorThesis } from "./thesis-file";
 export function ProfessorBoard() {
   const { data, professorId, selectProfessor, change } = useBoard();
+  const departments = data.departments;
   const p = data.professors.find((p) => p.id === professorId)!;
   const d = departments.find((d) => d.id === p.departmentId)!;
   const applications = data.students.flatMap((s) =>
@@ -73,8 +74,11 @@ export function ProfessorBoard() {
       <div className="summary-strip">
         <div>
           <Users size={21} />
-          <span>{d.usesCapacity ? "지도 정원" : "정원 정책"}</span>
-          <strong>{d.usesCapacity ? p.capacity : "제한 없음"}</strong>
+          <span>지도 정원</span>
+          <strong>
+            {p.capacity}
+            <small>명</small>
+          </strong>
         </div>
         <div>
           <UserCheck size={21} />
@@ -91,7 +95,13 @@ export function ProfessorBoard() {
           <Clock3 size={21} />
           <span>검토 대기</span>
           <strong>
-            {applications.filter((a) => a.application.status === "대기").length}
+            {
+              applications.filter((a) =>
+                ["대기", "면담 요청", "수정 요청"].includes(
+                  a.application.status,
+                ),
+              ).length
+            }
             <small>건</small>
           </strong>
         </div>
@@ -110,7 +120,7 @@ export function ProfessorBoard() {
         <p>
           {p.keywords} · 선호 주제: {p.preferredTopic}
         </p>
-        {d.usesCapacity && (
+        {
           <form
             className="inline-form"
             key={`${p.id}-${p.capacity}`}
@@ -140,6 +150,8 @@ export function ProfessorBoard() {
                 name="capacity"
                 type="number"
                 defaultValue={p.capacity}
+                min={p.assigned}
+                step={1}
                 required
                 aria-label="지도 정원"
               />
@@ -149,7 +161,7 @@ export function ProfessorBoard() {
               현재 배정 인원({p.assigned}명)보다 작게 설정할 수 없습니다.
             </small>
           </form>
-        )}
+        }
         <ErrorMessage message={error} />
         <StatusMessage message={message} />
       </section>
@@ -160,7 +172,8 @@ export function ProfessorBoard() {
         </div>
         {d.advisorMethod === "course_assigned" && (
           <p className="alert">
-            수업 배정 방식입니다. 행정실에서 배정 결과를 등록합니다.
+            교수별 졸업논문 수강 정보로 연결된 학생입니다. 별도 배정 절차가
+            없습니다.
           </p>
         )}
         {applications.length ? (
@@ -180,6 +193,45 @@ export function ProfessorBoard() {
             접수된 신청이 없습니다. 학생 화면에서 지도교수 요청을 보내면
             표시됩니다.
           </div>
+        )}
+      </section>
+      <section id="theses" className="panel">
+        <div className="section-heading">
+          <h2>최종논문 심사</h2>
+          <Badge>
+            {
+              applications.filter(
+                ({ student }) =>
+                  student.roadmaps.find((r) => r.departmentId === d.id)?.thesis
+                    ?.versions.length,
+              ).length
+            }
+            명
+          </Badge>
+        </div>
+        {applications.some(
+          ({ student }) =>
+            student.roadmaps.find((r) => r.departmentId === d.id)?.thesis
+              ?.versions.length,
+        ) ? (
+          applications.map(({ student }) => {
+            const roadmap = student.roadmaps.find(
+              (r) => r.departmentId === d.id,
+            )!;
+            return roadmap.thesis?.versions.length ? (
+              <ProfessorThesis
+                key={`${p.id}-${student.id}`}
+                student={student}
+                department={d}
+                roadmap={roadmap}
+                professor={p}
+              />
+            ) : null;
+          })
+        ) : (
+          <p className="empty">
+            담당 학생이 최종논문을 제출하면 파일과 심사 기능이 표시됩니다.
+          </p>
         )}
       </section>
       <HistoryList
@@ -204,6 +256,7 @@ function ApplicationCard({
   department: Department;
 }) {
   const change = useBoard((s) => s.change);
+  const departments = useBoard((s) => s.data.departments);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const decide = (status: Exclude<ApplicationStatus, "대기">) => {
@@ -257,51 +310,59 @@ function ApplicationCard({
           <dd>{a.plan}</dd>
         </div>
       </dl>
-      {a.contacted && <Badge>교수 컨택 완료</Badge>}
-      {a.status === "대기" && (
-        <>
-          <label>
-            학생에게 전달할 피드백
-            <textarea
-              aria-label={`${s.name} 피드백`}
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              placeholder="수정 요청·면담 요청·반려 시 반드시 입력해 주세요"
-            />
-          </label>
-          <ErrorMessage message={error} />
-          <div className="action-row">
-            <button
-              className="button primary"
-              disabled={!canApprove(d, p)}
-              onClick={() => decide("승인")}
-            >
-              승인
-            </button>
-            {(["수정 요청", "면담 요청", "반려"] as const).map((status) => (
+      {d.advisorMethod !== "course_assigned" &&
+        ["대기", "면담 요청", "수정 요청"].includes(a.status) && (
+          <>
+            {a.status === "면담 요청" && (
+              <p className="alert">
+                면담 후 이 신청에서 계속 검토할 수 있습니다. 승인하거나 수정
+                요청·반려 사유를 전달하세요.
+              </p>
+            )}
+            <label>
+              학생에게 전달할 피드백
+              <textarea
+                aria-label={`${s.name} 피드백`}
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="수정 요청·면담 요청·반려 시 반드시 입력해 주세요"
+              />
+            </label>
+            <ErrorMessage message={error} />
+            <div className="action-row">
               <button
-                className={`button ${status === "반려" ? "danger" : "secondary"}`}
-                key={status}
-                onClick={() => decide(status)}
+                className="button primary"
+                disabled={!canApprove(d, p)}
+                onClick={() => decide("승인")}
               >
-                {status}
+                승인
               </button>
-            ))}
-          </div>
-          {!canApprove(d, p) && (
-            <p className="capacity-warning">
-              정원 마감 · 남은 자리가 없어 승인할 수 없습니다.
-            </p>
-          )}
-        </>
-      )}
+              {(["수정 요청", "면담 요청", "반려"] as const).map((status) => (
+                <button
+                  className={`button ${status === "반려" ? "danger" : "secondary"}`}
+                  key={status}
+                  onClick={() => decide(status)}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            {!canApprove(d, p) && (
+              <p className="capacity-warning">
+                정원 마감 · 남은 자리가 없어 승인할 수 없습니다.
+              </p>
+            )}
+          </>
+        )}
       {a.feedback && (
         <div className="feedback">
           <strong>전달한 피드백</strong>
           <p>{a.feedback}</p>
         </div>
       )}
-      {a.status === "승인" && <p className="confirmation">행정실 {a.review}</p>}
+      {a.status === "승인" && (
+        <p className="confirmation">지도교수 확정 완료</p>
+      )}
     </article>
   );
 }

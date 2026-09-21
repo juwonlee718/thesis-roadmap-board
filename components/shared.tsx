@@ -90,7 +90,8 @@ export function StageDetails({ stage: s }: { stage: Stage }) {
         <summary>서식 안내 보기</summary>
         <p>{info(s.form)}</p>
         <small>
-          데모에서는 실제 파일을 업로드하지 않고 제출 상태만 기록합니다.
+          최종논문은 실제 파일을 브라우저에 저장해 지도교수에게 제공합니다. 다른
+          서류는 제출 상태를 기록합니다.
         </small>
       </details>
     </div>

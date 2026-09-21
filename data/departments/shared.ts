@@ -19,8 +19,8 @@ export function stage(
     form: "예시 서식(가상) · 제목 / 전공 / 연구 주제 / 계획 / 확인란",
     evidence:
       kind === "advisor"
-        ? "교수 승인 및 행정실 검토 기록"
-        : "제출 완료 기록(합성 증빙)",
+        ? "사이트 내 지도교수 승인 기록"
+        : "제출·교수 심사 기록",
     notice: "2026-2학기 시연용 절차입니다. 실제 학과 공지를 확인해 주세요.",
     contact:
       "가상 학과 행정실 · thesis-office@example.invalid · 평일 09:00–17:00",

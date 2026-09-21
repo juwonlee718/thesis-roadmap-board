@@ -45,7 +45,7 @@ export const sociology: Department = {
       "final",
       "최종논문 제출",
       "2026-12-04",
-      "submission",
+      "thesis",
       "시스템",
       ["최종논문"],
       "최종 검토를 마친 논문을 제출하세요.",
@@ -57,7 +57,7 @@ export const sociology: Department = {
       "result",
       "시스템",
       ["심사 결과서"],
-      "행정실이 심사 결과와 요건을 확인합니다.",
+      "지도교수의 최종논문 심사 결과를 확인합니다.",
     ),
   ],
 };

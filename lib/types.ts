@@ -11,7 +11,7 @@ export type Stage = {
   evidence: string;
   notice: string;
   contact: string;
-  kind: "advisor" | "course" | "submission" | "result";
+  kind: "advisor" | "course" | "submission" | "thesis" | "result";
 };
 export type Department = {
   id: string;
@@ -48,6 +48,21 @@ export type Roadmap = {
   completed: string[];
   submitted: string[];
   application?: Application;
+  draft?: { topic: string; plan: string; updatedAt: string };
+  thesis?: { stageId: string; versions: ThesisVersion[] };
+};
+export type ThesisFile = {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+};
+export type ThesisVersion = ThesisFile & {
+  id: string;
+  submittedAt: string;
+  status: "검토 대기" | "승인" | "수정 요청" | "반려";
+  feedback: string;
+  reviewedAt?: string;
 };
 export type Student = {
   id: string;
@@ -57,6 +72,12 @@ export type Student = {
   configured: boolean;
   majors: Major[];
   roadmaps: Roadmap[];
+  academicStatus: "재학" | "졸업학기" | "초과학기";
+  courseEnrollments: {
+    departmentId: string;
+    professorId: string;
+    courseName: string;
+  }[];
 };
 export type Professor = {
   id: string;
@@ -79,5 +100,15 @@ export type BoardState = {
   students: Student[];
   professors: Professor[];
   history: History[];
+  departments: Department[];
+  announcements: Announcement[];
+};
+export type Announcement = {
+  id: string;
+  departmentId: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  author: string;
 };
 export type ChangeContext = { actor: string; at: string };
